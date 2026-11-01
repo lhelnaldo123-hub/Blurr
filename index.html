@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Blurr — Flyer Studio</title>
+<meta name="theme-color" content="#0f0b1f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Blurr">
+<script defer src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script defer src="app.js"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#0f0b1f;--card:#1a1433;--line:#2c2450;--tx:#f4f1ff;--mut:#9d94c7;--ac:#7c3aed;--ac2:#ff4d8d}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif;overscroll-behavior:none;touch-action:manipulation}
+button,select,input,textarea{font:inherit}
+#app{height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;padding-top:env(safe-area-inset-top)}
+header{display:flex;align-items:center;gap:6px;padding:8px 10px}
+.brand{font-weight:900;font-size:24px;margin-right:auto;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.ib{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:15px;cursor:pointer}
+.ib.sm{padding:5px 10px;font-size:13px;border-radius:16px}
+.ib:active,.btn:active{transform:scale(.95)}
+.ib.on{border-color:var(--ac2);background:#2a1d55}
+.btn{background:linear-gradient(90deg,var(--ac),var(--ac2));border:0;color:#fff;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+#stage{display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0;background:#07050f}
+.canvas-container{box-shadow:0 10px 40px #000a}
+.canvas-container,.upper-canvas{touch-action:none!important}
+#panel{height:min(300px,40dvh);overflow-y:auto;background:var(--card);border-top:1px solid var(--line);padding:10px}
+#tabs{display:flex;overflow-x:auto;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);scrollbar-width:none}
+#tabs::-webkit-scrollbar{display:none}
+#tabs button{flex:1 0 auto;min-width:62px;background:none;border:0;color:var(--mut);padding:7px 6px;font-size:11px;cursor:pointer}
+#tabs button span{display:block;font-size:20px}
+#tabs button.on{color:#fff}
+.pane{display:none}.pane.on{display:block}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:7px 0}
+.mut{color:var(--mut);font-size:13px}
+.strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px}
+#bStrip img{height:64px;border-radius:8px;border:2px solid var(--line);flex:none;background:#000}
+#tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin:8px 0}
+#tpls img{width:100%;height:auto;min-height:90px;border-radius:8px;border:2px solid var(--line);background:#000;cursor:pointer}
+.sw{width:34px;height:34px;border-radius:50%;border:3px solid #fff3;flex:none;cursor:pointer}
+.sw.on{border-color:#fff}
+.sl{display:grid;grid-template-columns:84px 1fr;gap:8px;align-items:center;font-size:13px;color:var(--mut);margin:4px 0}
+input[type=range]{width:100%}
+input[type=color]{width:44px;height:36px;padding:0;border:0;background:none}
+input:not([type=color]):not([type=range]):not([type=checkbox]),select,textarea{width:100%;background:#0f0b1f;color:#fff;border:1px solid var(--line);border-radius:10px;padding:9px;margin:3px 0}
+.row select{width:auto;flex:1}
+.res{background:#0f0b1f;border-radius:10px;padding:10px;word-break:break-all;margin:8px 0}
+a.ib{text-decoration:none;display:inline-block}
+#splash{position:fixed;inset:0;z-index:100;background:radial-gradient(circle at 30% 20%,#2a1065,#0f0b1f 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s;text-align:center;padding:20px}
+#logo{width:120px;animation:pop 1.1s ease-in-out infinite alternate}
+@keyframes pop{to{transform:scale(1.1) rotate(-4deg)}}
+#splash h1{font-size:44px;margin:16px 0 4px;letter-spacing:2px}
+#splash p{margin:0;color:var(--mut);font-size:16px}
+.bar{width:170px;height:5px;background:#fff2;border-radius:9px;overflow:hidden;margin-top:28px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7c3aed,#ff4d8d);animation:ld 2.2s forwards}
+@keyframes ld{to{width:100%}}
+#tour{position:fixed;inset:0;z-index:50;display:none}#tour.show{display:block}
+#spot{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px #000c;transition:all .25s;pointer-events:none;outline:3px solid var(--ac2)}
+#card{position:fixed;left:50%;width:min(330px,92vw);background:#fff;color:#1a1433;border-radius:16px;padding:14px 16px}
+#card h3{margin:0 0 6px}#card p{margin:0 0 8px;line-height:1.4}
+#card .ib{background:#eee;color:#222;border-color:#ddd}
+#toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#fff;color:#111;padding:10px 14px;border-radius:12px;opacity:0;transition:.3s;pointer-events:none;z-index:60;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+@media(min-width:900px){
+ #app{grid-template-columns:430px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"h h" "p s" "t s"}
+ header{grid-area:h}#stage{grid-area:s}#panel{grid-area:p;height:auto;border-top:0}#tabs{grid-area:t}
+ #bStrip{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+
+<div id="splash">
+ <svg id="logo" viewBox="0 0 120 120"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#ff4d8d"/></linearGradient><filter id="bl"><feGaussianBlur stdDeviation="6"/></filter></defs>
+ <rect width="120" height="120" rx="28" fill="url(#lg)"/><circle cx="34" cy="36" r="22" fill="#fff" opacity=".3" filter="url(#bl)"/><circle cx="90" cy="90" r="26" fill="#ffd166" opacity=".5" filter="url(#bl)"/>
+ <text x="60" y="86" font-family="Arial Black,Arial" font-size="74" font-weight="900" text-anchor="middle" fill="#fff">B</text></svg>
+ <h1>Blurr</h1>
+ <p>Just upload — we will make it</p>
+ <div class="bar"><i></i></div>
+</div>
+
+<div id="app">
+ <header>
+  <b class="brand">Blurr</b>
+  <button class="ib" id="undo" title="Undo">↶</button>
+  <button class="ib" id="redo" title="Redo">↷</button>
+  <button class="ib" id="btnInstall" title="Install app">⬇ Install</button>
+  <button class="ib" id="btnHelp" title="Watch tutorial">?</button>
+ </header>
+
+ <main id="stage"><canvas id="c"></canvas></main>
+
+ <section id="panel">
+  <!-- TEMPLATES -->
+  <div class="pane on" id="p-templates">
+   <div class="row" id="sizes"></div>
+   <div class="row" id="cats"></div>
+   <div class="row" id="pals"></div>
+   <div class="row"><button class="btn" id="shuf">🎲 Shuffle design</button><button class="btn" id="magic">✨ Magic: photo → flyer</button></div>
+   <div id="tpls"></div>
+  </div>
+
+  <!-- BUILD YOUR OWN -->
+  <div class="pane" id="p-build">
+   <p class="mut" style="margin:0">Make your own design from scratch.</p>
+   <div class="row"><select id="kSz"></select><select id="kTy"><option value="solid">Solid colour</option><option value="gradient">Gradient</option><option value="pattern">Pattern</option><option value="photo">My photo</option></select></div>
+   <div class="row">Colour 1 <input type="color" id="kC1" value="#1b1035"> Colour 2 <input type="color" id="kC2" value="#ff5e62"></div>
+   <div class="row" id="kGrad"><select id="kDir"><option value="v">Top → bottom</option><option value="h">Left → right</option><option value="d">Diagonal</option><option value="r">Radial glow</option></select></div>
+   <div class="row" id="kPat" style="display:none"><select id="kPatSel"><option value="dots">Dots</option><option value="stripes">Stripes</option><option value="grid">Grid</option><option value="diag">Diagonal lines</option><option value="check">Checkerboard</option><option value="waves">Waves</option></select></div>
+   <div class="row" id="kPho" style="display:none"><button class="ib" id="kPick">🖼 Choose background photo</button><span class="mut" id="kPn"></span></div>
+   <div class="sl" id="kDim" style="display:none">Darken<input type="range" id="kDimR" min="0" max=".85" step=".05" value=".35"></div>
+   <div class="row"><label class="mut"><input type="checkbox" id="kTt" checked> Add a title</label></div>
+   <input id="kTx" value="YOUR TITLE">
+   <div class="row"><button class="btn" id="kNew">✓ Create new design</button><button class="ib" id="kCur">Apply to current</button><button class="ib" id="kRand">🎲 Random background</button></div>
+  </div>
+
+  <!-- ADD -->
+  <div class="pane" id="p-add">
+   <div class="row"><button class="btn" id="addImg">📷 Add photo</button><button class="ib" data-tx="h">Heading</button><button class="ib" data-tx="s">Subtitle</button><button class="ib" data-tx="b">Body</button></div>
+   <b>Shapes</b>
+   <div class="row"><button class="ib" data-s="rect">▭</button><button class="ib" data-s="circle">●</button><button class="ib" data-s="ring">○</button><button class="ib" data-s="tri">▲</button><button class="ib" data-s="star">★</button><button class="ib" data-s="line">━</button></div>
+   <b>Stickers</b>
+   <div class="row" id="emo"></div>
+  </div>
+
+  <div class="pane" id="p-edit"></div>
+  <div class="pane" id="p-effects"></div>
+
+  <!-- BATCH -->
+  <div class="pane" id="p-batch">
+   <div class="row"><button class="btn" id="bPick">📸 Choose many photos</button><button class="ib" id="bClear">Clear</button><span class="mut" id="bCount">0 photos</span></div>
+   <div class="strip" id="bStrip"></div>
+   <b>One-tap looks</b><div class="row" id="bLooks"></div>
+   <div class="row"><button class="btn" id="bRnd">🎲 Surprise me</button><button class="ib" id="bAuto">✨ Auto enhance</button><button class="ib" id="bReset">↺ Reset</button></div>
+   <b>Filters</b><div class="row" id="bPre"></div>
+   <div id="bSl"></div>
+   <b>Finishing</b>
+   <div class="sl">Vignette<input type="range" data-bk="vig" min="0" max=".9" step=".05" value="0"></div>
+   <div class="sl">Border<input type="range" data-bk="border" min="0" max="60" step="2" value="0"></div>
+   <div class="sl">Round<input type="range" data-bk="round" min="0" max="50" step="1" value="0"></div>
+   <div class="row">Border colour <input type="color" id="bbc" value="#ffffff"></div>
+   <input id="bwm" placeholder="Watermark text (optional), e.g. @yourname">
+   <div class="row"><select id="bmax"><option value="1080">Small (1080px)</option><option value="1600" selected>Medium (1600px)</option><option value="2400">Large (2400px)</option></select><select id="bfmt"><option value="jpeg">JPG</option><option value="png">PNG</option></select></div>
+   <img id="bPrev" alt="" style="width:100%;border-radius:10px;display:none">
+   <div class="row"><button class="ib" id="bPv">👁 Preview</button><button class="btn" id="bGo">⬇ Apply to all · ZIP</button></div>
+   <div class="row"><button class="ib" id="bShare">📤 Share / Save to Photos</button><button class="ib" id="bCol">🖼 Make collage flyer</button></div>
+   <div class="mut" id="bProg"></div>
+  </div>
+
+  <!-- QR -->
+  <div class="pane" id="p-qr">
+   <div class="row"><button class="ib on" data-qs="gen">Create QR</button><button class="ib" data-qs="scan">Scan QR</button></div>
+   <div id="qgen">
+    <select id="qt"><option value="text">Link / Text</option><option value="wifi">WiFi</option><option value="phone">Phone</option><option value="email">Email</option><option value="wa">WhatsApp</option><option value="sms">SMS</option></select>
+    <input id="qa" type="text"><input id="qb" type="text"><input id="qc" type="text">
+    <div class="row">Colour <input type="color" id="qf" value="#000000"> Back <input type="color" id="qg" value="#ffffff"> <label><input type="checkbox" id="qd"> Dots</label></div>
+    <canvas id="qp" width="800" height="800" style="width:190px;height:190px;border-radius:8px"></canvas>
+    <div class="row"><button class="btn" id="qadd">Add to flyer</button><button class="ib" id="qdl">⬇ PNG</button></div>
+   </div>
+   <div id="qscan" style="display:none">
+    <video id="vid" playsinline muted style="width:100%;max-height:200px;border-radius:12px;background:#000"></video>
+    <div class="row"><button class="btn" id="sGo">📷 Live camera</button><button class="ib" id="sFile">🖼 From photo</button></div>
+    <div id="sRes"></div>
+   </div>
+  </div>
+
+  <!-- EXPORT -->
+  <div class="pane" id="p-export">
+   <div class="row"><button class="btn" data-ex="png">⬇ PNG</button><button class="btn" data-ex="jpg">⬇ JPG</button><button class="btn" data-ex="pdf">⬇ PDF</button></div>
+   <div class="row"><select id="exs"><option value="1">Normal quality</option><option value="2">High quality (2x)</option></select><button class="ib" id="share">📤 Share</button></div>
+   <div class="row"><button class="ib" id="newBtn">🗑 Start blank</button></div>
+   <p class="mut">Your work saves automatically on this device.</p>
+  </div>
+ </section>
+
+ <nav id="tabs">
+  <button id="tab-templates" data-t="templates" class="on"><span>🎨</span>Templates</button>
+  <button id="tab-build" data-t="build"><span>🧱</span>Build</button>
+  <button id="tab-add" data-t="add"><span>➕</span>Add</button>
+  <button id="tab-edit" data-t="edit"><span>✏️</span>Edit</button>
+  <button id="tab-effects" data-t="effects"><span>🪄</span>Effects</button>
+  <button id="tab-batch" data-t="batch"><span>📚</span>Batch</button>
+  <button id="tab-qr" data-t="qr"><span>▦</span>QR</button>
+  <button id="tab-export" data-t="export"><span>⬇️</span>Export</button>
+ </nav>
+</div>
+
+<input type="file" id="fImg" accept="image/*" multiple hidden>
+<input type="file" id="fMagic" accept="image/*" hidden>
+<input type="file" id="fScan" accept="image/*" hidden>
+<input type="file" id="fBatch" accept="image/*" multiple hidden>
+<input type="file" id="fBg" accept="image/*" hidden>
+
+<div id="tour"><div id="spot"></div>
+ <div id="card"><h3 id="tt"></h3><p id="tx"></p>
+  <div class="row"><small id="tc"></small><button class="ib" id="tb">← Back</button><button class="ib" id="ts">Skip</button><button class="btn" id="tn">Next →</button></div>
+ </div>
+</div>
+<div id="toast"></div>
+</body>
+</html>
